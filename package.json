@@ -3,7 +3,6 @@
     "start": "nodemon app.js"
   },
   "dependencies": {
-    "@api/chatpro": "file:.api/apis/chatpro",
     "axios": "^1.7.3",
     "body-parser": "^1.20.2",
     "express": "^4.19.2",
