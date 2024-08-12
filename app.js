@@ -1,77 +1,121 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+const leadRouter = require('./route/lead.route'); // Ensure this path is correct
+require('dotenv').config();
+const Connection=require('./mongodb')
+const LeadModel = require('./schema/lead.schema');
+const ConvertNumber = require('./helpers/convertnumber');
 const axios = require('axios');
+ // Make sure to require axios if it's not already
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Middleware to parse JSON
-app.use(bodyParser.json());
+app.use(express.json()); // Parse JSON bodies
 
-// ChatPro instance details
-const instanceId = "chatpro-5ee5b0da2b";
-const chatProApiUrl = `https://v5.chatpro.com.br/${instanceId}/api/v1`;
-const chatProApiToken = '33edfc5e-1287-4cd1-9a69-36198fc77818'; // Replace with your actual API token
+// Mount the leadRouter at /api
+app.use('/api', leadRouter);
 
-// Function to send a message using ChatPro API
-async function sendMessage(to, message) {
+// Example webhook endpoint
+app.post('/webhook', async (req, res) => {
+  console.log("Webhook received:", req.body);
+
+  const number = req.body.message_data.number.split('@')[0];
+  console.log("Extracted number:", number);
+
   try {
-    const response = await axios.post(`${chatProApiUrl}/send_message`, {
-      recipient: to,
-      message: {
-        text: message
+    if (req.body.event === 'received_message') {
+      Connection()
+      // const convertedNumber = ConvertNumber(number);
+      // console.log("Converted number:", convertedNumber);
+
+      let lead = await LeadModel.findOne({ phone: number });
+      console.log("Lead found:", lead);
+
+      if (!lead || lead.imoview===false) {
+        console.log("Lead not found, creating a new lead...");
+
+        let newLead
+        if(!lead){
+          newLead=await LeadModel.create({ phone: number });
+        console.log("New lead created:", newLead);
+        }else{
+          newLead=lead
+        }
+        
+
+        try {
+          // Define the API endpoint and parameters
+          const options = {
+            method: 'POST',
+            url: 'https://sparks.chatpro.com.br/leads/findByPhoneNumber',
+            headers: {
+              accept: 'application/json',
+              'instance-token': process.env.CHATPRO_APP_TOKEN,
+              'content-type': 'application/json'
+            },
+            data: { phoneNumber: number, instanceId: process.env.CHATPRO_APP }
+          };
+
+          const leadResponse = await axios.request(options);
+          console.log("Lead response data:", leadResponse.data);
+
+          const endpoint = `${process.env.IMO_URL}/Lead/IncluirLead`;
+          const params = {
+            nome: leadResponse.data.name,
+            telefone: number,
+            midia: leadResponse.data.eul,
+          };
+
+          // Log the endpoint and params for debugging
+          console.log('Endpoint:', endpoint);
+          console.log('Params:', params);
+
+          // Make the API call
+          const response = await axios.post(endpoint, params, {
+            headers: {
+              'Accept': 'application/json',
+              'chave': process.env.API_CHAVE,
+              'codigoacesso': process.env.ACC_CODE
+            }
+          });
+
+          console.log("API call response:", response.data);
+
+          // Update the newly created lead
+          await LeadModel.updateOne({ phone: number }, {
+            imoview: true,
+            name: leadResponse.data.name
+          });
+          console.log("Lead updated with Imoview data.");
+
+          // Send the response data
+          return res.json(response.data); // Ensure you return or end the response here
+        } catch (error) {
+          console.error('Error making API calls:', error.message);
+          if (error.response) {
+            console.error('Error details:', error.response.data);
+          }
+          return res.status(error.response?.status || 500).json({ error: 'Internal server error' });
+        }
+      } else {
+        console.log("Lead already exists.");
+        return res.status(200).json({ message: 'Lead data processed successfully' });
       }
-    }, {
-      headers: {
-        'Authorization': chatProApiToken,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log('Message sent:', response.data);
-  } catch (error) {
-    console.error('Error sending message:', error);
-  }
-}
-
-// Endpoint to receive webhook events from Chat Pro
-app.post('/webhook', (req, res) => {
-  const event = req.body;
-
-  console.log('Received event from Chat Pro:', event);
-
-  // Check if the event is an ack_update event
-  if (event[0] === 'Msg' && event[1].cmd === 'ack') {
-    const { id, ack, from, to, t } = event[1];
-
-    console.log(`ACK update for message ${id}:`, ack);
-    
-    // Handle ACK update as needed (e.g., update message status in database)
-    // Example: Logging the ACK status
-    switch (ack) {
-      case 0:
-        console.log('Message not yet sent');
-        break;
-      case 1:
-        console.log('Message sent');
-        break;
-      case 2:
-        console.log('Message received');
-        sendMessage(to, `Message with ID ${id} received.`);
-        break;
-      case 3:
-        console.log('Message read');
-        break;
-      case 4:
-        console.log('Audio played');
-        break;
-      default:
-        console.log('Unknown ACK status');
+    } else {
+      console.log("Unhandled event type:", req.body.event);
+      return res.status(400).json({ error: 'Unhandled event type' });
     }
-
-    res.status(200).send('ACK update received.');
-  } else {
-    res.status(400).send('Unsupported event type.');
+  } catch (error) {
+    console.error('Error processing webhook:', error.message);
+    return res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error handling middleware:', err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 });
 
 // Start the server
