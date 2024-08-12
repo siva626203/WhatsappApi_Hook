@@ -19,15 +19,15 @@ app.use('/api', leadRouter);
 app.post('/webhook', async (req, res) => {
   console.log("Webhook received:", req.body);
 
-  const number = req.body.message_data.number.split('@')[0];
-  console.log("Extracted number:", number);
+
 
   try {
     if (req.body.event === 'received_message') {
       Connection()
       // const convertedNumber = ConvertNumber(number);
       // console.log("Converted number:", convertedNumber);
-
+      const number = req.body.message_data.number.split('@')[0];
+      console.log("Extracted number:", number);
       let lead = await LeadModel.findOne({ phone: number });
       console.log("Lead found:", lead);
 
