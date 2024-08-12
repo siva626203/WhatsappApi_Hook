@@ -61,7 +61,7 @@ app.post('/webhook', async (req, res) => {
 
           const endpoint = `${process.env.IMO_URL}/Lead/IncluirLead`;
           const params = {
-            nome: leadResponse.data.name,
+            nome: leadResponse.data.name ||leadResponse.data.push_name || "WhatsApp Lead",
             telefone: number,
             midia: leadResponse.data.eul,
           };
