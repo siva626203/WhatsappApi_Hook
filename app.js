@@ -63,7 +63,7 @@ app.post('/webhook', async (req, res) => {
           const params = {
             nome: leadResponse.data.name ||leadResponse.data.push_name || "WhatsApp Lead",
             telefone: number,
-            midia: leadResponse.data.eul,
+            midia: leadResponse.data.eul || "https://github.com/siva626203/WhatsappApi_Hook/blob/main/images/user_667377.png",
           };
 
           // Log the endpoint and params for debugging
