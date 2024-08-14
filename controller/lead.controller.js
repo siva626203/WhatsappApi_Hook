@@ -36,3 +36,36 @@ module.exports.lead_get = async (req, res) => {
     res.status(error.response?.status || 500).json({ error: 'Internal server error' });
   }
 };
+
+module.exports.lead_create=async (req,res)=>{
+  try {
+      const {name,number,email}=req.query
+          const endpoint = `${process.env.IMO_URL}/Lead/IncluirLead`;
+          const params = {
+            nome: name,
+            telefone: number,
+            email:email,
+            midia: "ChatPro",
+          };
+          // Log the endpoint and params for debugging
+          console.log('Endpoint:', endpoint);
+          console.log('Params:', params);
+
+          // Make the API call
+          const response = await axios.post(endpoint, params, {
+            headers: {
+              'Accept': 'application/json',
+              'chave': process.env.API_CHAVE,
+              'codigoacesso': process.env.ACC_CODE
+            }
+          });
+
+          console.log("API call response:", response.data);
+
+        return res.send(`Thanks ${name}`); // Ensure you return or end the response here
+        
+  }catch(err){
+    console.error('Error fetching status:', err.message);
+    return res.send(`Thank you`);
+  }
+}
