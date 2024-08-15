@@ -39,13 +39,14 @@ module.exports.lead_get = async (req, res) => {
 
 module.exports.lead_create=async (req,res)=>{
   try {
-      const {name,number,email}=req.query
+      const {name,number,email,purpose}=req.query
           const endpoint = `${process.env.IMO_URL}/Lead/IncluirLead`;
           const params = {
             nome: name,
             telefone: number,
             email:email,
             midia: "ChatPro",
+            finalidade:purpose.toString(),
           };
           // Log the endpoint and params for debugging
           console.log('Endpoint:', endpoint);
