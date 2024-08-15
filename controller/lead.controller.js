@@ -46,7 +46,7 @@ module.exports.lead_create=async (req,res)=>{
             telefone: number,
             email:email,
             midia: "ChatPro",
-            finalidade:purpose?.toString(),
+            finalidade:purpose?.toString() || purpose,
           };
           // Log the endpoint and params for debugging
           console.log('Endpoint:', endpoint);
